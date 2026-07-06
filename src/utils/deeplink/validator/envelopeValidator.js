@@ -2,6 +2,7 @@ import { AUTHENTICATION_REQUEST_VDXF_KEY, GenericRequest, IDENTITY_UPDATE_REQUES
   VERUSPAY_INVOICE_DETAILS_VDXF_KEY, VerusPayInvoiceDetailsOrdinalVDXFObject, APP_ENCRYPTION_REQUEST_VDXF_KEY, CREATE_WALLET_BACKUP_DETAILS_VDXF_KEY, SPENDABLE_KEY_DETAILS_VDXF_KEY, SpendableKeyDetailsOrdinalVDXFObject,
   USER_DATA_REQUEST_VDXF_KEY, DATA_PACKET_REQUEST_VDXF_KEY,
   MARKETPLACE_MAKEOFFER_REQUEST_VDXF_KEY,
+  MARKETPLACE_TAKEOFFER_REQUEST_VDXF_KEY,
   CreateWalletBackupDetailsOrdinalVDXFObject} from "verus-typescript-primitives"
 import { getInfo, verifyGenericRequest } from "../../api/channels/vrpc/callCreators"
 import { getIdentity } from "../../api/channels/verusid/callCreators";
@@ -14,6 +15,7 @@ import { validateCreateWalletBackupDetailsVDXFObject } from "./createWalletBacku
 import { validateSpendableKeyDetailsVDXFObject } from "./spendableKeyDetailsValidator";
 import { validateUserDataRequestVDXFObject } from "./userDataRequestValidator";
 import { validateDataPacketRequestVDXFObject } from "./dataPacketRequestValidator";
+import { validateMarketplaceTakeOfferRequestVDXFObject } from "./marketplaceTakeOfferRequestValidator";
 import { validateMarketplaceMakeOfferRequestVDXFObject } from "./marketplaceMakeOfferRequestValidator";
 import { CoinDirectory } from "../../CoinData/CoinDirectory";
 import VrpcProvider from '../../vrpc/vrpcInterface';
@@ -49,7 +51,8 @@ export const getValidatorForDetail = (detailKey) => {
     [SPENDABLE_KEY_DETAILS_VDXF_KEY.vdxfid]: validateSpendableKeyDetailsVDXFObject,
     [USER_DATA_REQUEST_VDXF_KEY.vdxfid]: validateUserDataRequestVDXFObject,
     [DATA_PACKET_REQUEST_VDXF_KEY.vdxfid]: validateDataPacketRequestVDXFObject,
-    [MARKETPLACE_MAKEOFFER_REQUEST_VDXF_KEY.vdxfid]: validateMarketplaceMakeOfferRequestVDXFObject
+    [MARKETPLACE_MAKEOFFER_REQUEST_VDXF_KEY.vdxfid]: validateMarketplaceMakeOfferRequestVDXFObject,
+    [MARKETPLACE_TAKEOFFER_REQUEST_VDXF_KEY.vdxfid]: validateMarketplaceTakeOfferRequestVDXFObject
   }
 
   if (Object.keys(detailValidators).includes(detailKey)) {
