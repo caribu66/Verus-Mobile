@@ -25,6 +25,7 @@ import {
   USER_DATA_REQUEST_VDXF_KEY,
   VALU_MOBILE_GENERIC_REQUEST_HANDLER_ID,
   VERUSPAY_INVOICE_DETAILS_VDXF_KEY,
+  MARKETPLACE_MAKEOFFER_REQUEST_VDXF_KEY,
 } from 'verus-typescript-primitives';
 import InvoiceInfo from '../InvoiceInfo/InvoiceInfo';
 import { handleVerusPayInvoiceDetailsVDXFObject } from '../../../utils/deeplink/handlers/verusPayInvoiceDetailsHandler';
@@ -47,6 +48,8 @@ import DataPacketRequestInfo from '../DataPacketRequestInfo/DataPacketRequestInf
 import ListSelectionModal from '../../../components/ListSelectionModal/ListSelectionModal';
 import VerusIdDetailsModal from '../../../components/VerusIdDetailsModal/VerusIdDetailsModal';
 import { isDeeplinkHandlerInstalled } from '../../../utils/deeplink/isDeeplinkHandlerInstalled';
+import MarketplaceMakeOfferRequestInfo from '../MarketplaceMakeOfferRequestInfo/MarketplaceMakeOfferRequestInfo';
+import { handleMarketplaceMakeOfferRequestDetailsVDXFObject } from '../../../utils/deeplink/handlers/marketplaceMakeOfferRequestDetailsHandler';
 import Colors from '../../../globals/colors';
 import {
   getFriendlyNameMap,
@@ -57,7 +60,6 @@ import {
   isExperimentalGenericRequestDetailKey,
   isExperimentalGenericRequestsEnabled,
 } from '../../../utils/deeplink/experimentalDeeplinks';
-
 
 const GenericRequestHome = props => {
   const {
@@ -111,6 +113,7 @@ const GenericRequestHome = props => {
   detailHandlers.set(SPENDABLE_KEY_DETAILS_VDXF_KEY.vdxfid, handleSpendableKeyDetailsVDXFObject);
   detailHandlers.set(USER_DATA_REQUEST_VDXF_KEY.vdxfid, handleUserDataRequestVDXFObject);
   detailHandlers.set(DATA_PACKET_REQUEST_VDXF_KEY.vdxfid, handleDataPacketRequestVDXFObject);
+  detailHandlers.set(MARKETPLACE_MAKEOFFER_REQUEST_VDXF_KEY.vdxfid, handleMarketplaceMakeOfferRequestDetailsVDXFObject);
   /**
    * Processes a detail in the request at a certain index
    * @param {number} index 
@@ -386,6 +389,19 @@ const GenericRequestHome = props => {
     ),
     [SPENDABLE_KEY_DETAILS_VDXF_KEY.vdxfid]: () => (
       <SpendableKeyRequestInfo
+        {...displayProps}
+        cancel={props.cancel}
+        setLoading={props.setLoading}
+        navigation={props.navigation}
+        next={next}
+        response={response}
+        request={request}
+        detailIndex={detailIndex}
+        openVerusIdDetailsModal={openVerusIdDetailsModal}
+      />
+    ),
+    [MARKETPLACE_MAKEOFFER_REQUEST_VDXF_KEY.vdxfid]: () => (
+      <MarketplaceMakeOfferRequestInfo
         {...displayProps}
         cancel={props.cancel}
         setLoading={props.setLoading}

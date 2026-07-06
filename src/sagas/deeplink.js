@@ -47,6 +47,7 @@ function* handleDeeplinkUrl(action) {
               `${DEEPLINK_PROTOCOL_URL_STRING}://`
             )
           : urlstring;
+
         const req = GenericRequest.fromWalletDeeplinkUri(parseUri);
 
         if (
