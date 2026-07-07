@@ -3,7 +3,8 @@ import { AUTHENTICATION_REQUEST_VDXF_KEY, GenericRequest, IDENTITY_UPDATE_REQUES
   USER_DATA_REQUEST_VDXF_KEY, DATA_PACKET_REQUEST_VDXF_KEY,
   MARKETPLACE_MAKEOFFER_REQUEST_VDXF_KEY,
   MARKETPLACE_TAKEOFFER_REQUEST_VDXF_KEY,
-  CreateWalletBackupDetailsOrdinalVDXFObject} from "verus-typescript-primitives"
+  CreateWalletBackupDetailsOrdinalVDXFObject,
+  MARKETPLACE_CLOSEOFFER_REQUEST_VDXF_KEY} from "verus-typescript-primitives"
 import { getInfo, verifyGenericRequest } from "../../api/channels/vrpc/callCreators"
 import { getIdentity } from "../../api/channels/verusid/callCreators";
 import { validateAuthenticationRequestVDXFObject } from "./authenticationRequestValidator";
@@ -17,6 +18,7 @@ import { validateUserDataRequestVDXFObject } from "./userDataRequestValidator";
 import { validateDataPacketRequestVDXFObject } from "./dataPacketRequestValidator";
 import { validateMarketplaceTakeOfferRequestVDXFObject } from "./marketplaceTakeOfferRequestValidator";
 import { validateMarketplaceMakeOfferRequestVDXFObject } from "./marketplaceMakeOfferRequestValidator";
+import { validateMarketplaceCloseOfferRequestVDXFObject } from "./marketplaceCloseOfferRequestValidator";
 import { CoinDirectory } from "../../CoinData/CoinDirectory";
 import VrpcProvider from '../../vrpc/vrpcInterface';
 import store from "../../../store";
@@ -52,7 +54,8 @@ export const getValidatorForDetail = (detailKey) => {
     [USER_DATA_REQUEST_VDXF_KEY.vdxfid]: validateUserDataRequestVDXFObject,
     [DATA_PACKET_REQUEST_VDXF_KEY.vdxfid]: validateDataPacketRequestVDXFObject,
     [MARKETPLACE_MAKEOFFER_REQUEST_VDXF_KEY.vdxfid]: validateMarketplaceMakeOfferRequestVDXFObject,
-    [MARKETPLACE_TAKEOFFER_REQUEST_VDXF_KEY.vdxfid]: validateMarketplaceTakeOfferRequestVDXFObject
+    [MARKETPLACE_TAKEOFFER_REQUEST_VDXF_KEY.vdxfid]: validateMarketplaceTakeOfferRequestVDXFObject,
+    [MARKETPLACE_CLOSEOFFER_REQUEST_VDXF_KEY.vdxfid]: validateMarketplaceCloseOfferRequestVDXFObject
   }
 
   if (Object.keys(detailValidators).includes(detailKey)) {
