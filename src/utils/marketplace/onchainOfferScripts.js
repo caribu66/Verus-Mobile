@@ -1,3 +1,6 @@
+// bn.js is a direct dependency; the monorepo parent confuses this legacy
+// repository's package-boundary resolver when linted from the nested checkout.
+// eslint-disable-next-line import/no-extraneous-dependencies
 import BN from 'bn.js';
 import {
   KeyID,
@@ -11,7 +14,7 @@ import {
   fromBase58Check,
   getDataKey,
 } from 'verus-typescript-primitives';
-import { hash, hash160 } from 'verus-typescript-primitives/dist/utils/hash.js';
+import { hash, hash160 } from 'verus-typescript-primitives/dist/utils/hash';
 
 // VDXF offer index-key names (crosschainrpc.h). The daemon indexes an identity
 // offer under two keys: what's offered (the identity) and what's wanted (currency).

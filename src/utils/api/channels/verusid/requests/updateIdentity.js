@@ -1,9 +1,17 @@
-import { decompile, GetIdentityResponse, OPS, OptCCParams, Identity, fromBase58Check, IdentityUpdateRequestDetails, IdentityUpdateResponseDetails } from "verus-typescript-primitives";
-import VrpcProvider from "../../../../vrpc/vrpcInterface"
-import { getIdentity } from "./getIdentity";
-import { getSpendableUtxos, getTransaction, sendRawTransaction } from "../../vrpc/callCreators";
-import { networks, Transaction } from "@bitgo/utxo-lib";
-import { I_ADDRESS_VERSION } from "../../../../constants/constants";
+/* eslint-disable no-continue, no-inner-declarations */
+import {
+  decompile,
+  OPS,
+  OptCCParams,
+  Identity,
+  fromBase58Check,
+  IdentityUpdateResponseDetails,
+} from 'verus-typescript-primitives';
+import { networks, Transaction } from '@bitgo/utxo-lib';
+import VrpcProvider from '../../../../vrpc/vrpcInterface';
+import { getIdentity } from './getIdentity';
+import { getSpendableUtxos, getTransaction, sendRawTransaction } from '../../vrpc/callCreators';
+import { I_ADDRESS_VERSION } from '../../../../constants/constants';
 
 export const extractIdOutputFromTx = (rawIdTx, vout = null) => {
   const identityTransaction = Transaction.fromHex(rawIdTx, networks.verus);
@@ -13,31 +21,31 @@ export const extractIdOutputFromTx = (rawIdTx, vout = null) => {
 
     const output = identityTransaction.outs[i];
     const decomp = decompile(Buffer.from(output.script));
-  
+
     if (decomp.length !== 4) continue;
     if (decomp[1] !== OPS.OP_CHECKCRYPTOCONDITION) continue;
     if (decomp[3] !== OPS.OP_DROP) continue;
-  
+
     try {
       const outParams = OptCCParams.fromChunk(Buffer.from(decomp[2]));
-  
+
       const __identity = new Identity();
       __identity.fromBuffer(outParams.getParamObject());
 
       return __identity;
-    } catch(e) {
+    } catch (e) {
       continue;
     }
   }
 
-  throw new Error("Could not find identity output in tx");
-}
+  throw new Error('Could not find identity output in tx');
+};
 
 /**
- * Safely extracts an editable/serializable identity class instance from the transaction an identity came from,
- * as opposed to trusting the server to return the object correctly
- * @param {string} systemId 
- * @param {GetIdentityResponse["result"]} getIdentityResult 
+ * Safely extracts an editable/serializable identity class instance from the
+ * transaction an identity came from, rather than trusting the server object.
+ * @param {string} systemId
+ * @param {GetIdentityResponse["result"]} getIdentityResult
  * @returns {Promise<{tx: string, identity: Identity}>}
  */
 export const getUpdatableIdentity = async (systemId, getIdentityResult) => {
@@ -52,10 +60,10 @@ export const getUpdatableIdentity = async (systemId, getIdentityResult) => {
 
     return { tx: rawIdTx, identity };
   }
-}
+};
 
 /**
- * Updates the provided identity from its current state (using the provided identities i-addr) to the 
+ * Updates the provided identity from its current state (using the provided identities i-addr) to the
  * state provided in identity
  * @param {string} systemId The system id to update the id on
  * @param {Identity | IdentityUpdateRequestDetails} identity The identity to update to
@@ -63,9 +71,18 @@ export const getUpdatableIdentity = async (systemId, getIdentityResult) => {
  * @param {string} rawIdTx The raw transaction that created the identity
  * @param {number} idHeight The height of the block that the identity was created in
  * @param {boolean} fundTransaction Whether or not to fund the transaction that gets returned
- * @returns 
+ * @returns
  */
-export const createUpdateIdentityTx = async (systemId, identity, changeAaddr, rawIdTx, idHeight, fundTransaction = true, updateIdentityTransactionHex, isTestnet) => {
+export const createUpdateIdentityTx = async (
+  systemId,
+  identity,
+  changeAaddr,
+  rawIdTx,
+  idHeight,
+  fundTransaction = true,
+  updateIdentityTransactionHex,
+  isTestnet,
+) => {
   const verusid = VrpcProvider.getVerusIdInterface(systemId);
   // Fund from plain P2PKH utxos only. Smart-tx utxos that carry reserve
   // currencies alongside the native coin put a non-native currency key in the
@@ -74,23 +91,36 @@ export const createUpdateIdentityTx = async (systemId, identity, changeAaddr, ra
   // fee value".
   const utxos = fundTransaction
     ? (await getSpendableUtxos(systemId, systemId, [changeAaddr])).filter(
-        (u) => typeof u.script === 'string' && u.script.startsWith('76a914'),
-      )
+      (u) => typeof u.script === 'string' && u.script.startsWith('76a914'),
+    )
     : undefined;
 
-  return verusid.createUpdateIdentityTransaction(identity, changeAaddr, rawIdTx, idHeight, utxos, undefined, undefined, undefined, undefined, updateIdentityTransactionHex, true, isTestnet);
-}
+  return verusid.createUpdateIdentityTransaction(
+    identity,
+    changeAaddr,
+    rawIdTx,
+    idHeight,
+    utxos,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    updateIdentityTransactionHex,
+    true,
+    isTestnet,
+  );
+};
 
 export const createUpdateIdentityResponse = async (systemId, signerId, reqId, txid, primAddrWif) => {
   const verusid = VrpcProvider.getVerusIdInterface(systemId);
 
   return verusid.createIdentityUpdateResponse(signerId, IdentityUpdateResponseDetails.fromJson({
-    flags: "0",
+    flags: '0',
     requestid: reqId,
     createdat: (Date.now() / 1000).toFixed(0),
-    txid: txid
-  }), primAddrWif)
-}
+    txid,
+  }), primAddrWif);
+};
 
 export const createRevokeIdentityTx = async (systemId, iAddr, changeAaddr) => {
   const verusid = VrpcProvider.getVerusIdInterface(systemId);
@@ -105,9 +135,17 @@ export const createRevokeIdentityTx = async (systemId, iAddr, changeAaddr) => {
 
     return verusid.createRevokeIdentityTransaction(identity, changeAaddr, tx, blockheight, utxos);
   }
-}
+};
 
-export const createRecoverIdentityTx = async (systemId, iAddr, recoveryAuthority, revocationAuthority, primaryAddresses, privateAddress, changeAaddr) => {
+export const createRecoverIdentityTx = async (
+  systemId,
+  iAddr,
+  recoveryAuthority,
+  revocationAuthority,
+  primaryAddresses,
+  privateAddress,
+  changeAaddr,
+) => {
   const verusid = VrpcProvider.getVerusIdInterface(systemId);
 
   const idRes = await getIdentity(systemId, iAddr);
@@ -121,18 +159,19 @@ export const createRecoverIdentityTx = async (systemId, iAddr, recoveryAuthority
       let addressVersion;
       try {
         const { version } = fromBase58Check(authString);
-        addressVersion = version
-      } catch(e) {}
+        addressVersion = version;
+      } catch (e) {
+        // Non-i-address values are resolved as identity names below.
+      }
 
       if (addressVersion != null && addressVersion === I_ADDRESS_VERSION) {
-        return authString
-      } else {
-        const recRes = await getIdentity(systemId, authString);
-        if (recRes.error) throw new Error(recRes.error.message);
-        else {
-          const id = (await getUpdatableIdentity(systemId, recRes.result)).identity;
-          return id.getIdentityAddress()
-        }
+        return authString;
+      }
+      const recRes = await getIdentity(systemId, authString);
+      if (recRes.error) throw new Error(recRes.error.message);
+      else {
+        const id = (await getUpdatableIdentity(systemId, recRes.result)).identity;
+        return id.getIdentityAddress();
       }
     }
 
@@ -140,21 +179,21 @@ export const createRecoverIdentityTx = async (systemId, iAddr, recoveryAuthority
     if (privateAddress != null) identity.setPrivateAddress(privateAddress);
 
     if (recoveryAuthority != null) {
-      identity.setRecovery(await getAuthorityAddress(recoveryAuthority))
+      identity.setRecovery(await getAuthorityAddress(recoveryAuthority));
     }
 
     if (revocationAuthority != null) {
-      identity.setRevocation(await getAuthorityAddress(revocationAuthority))
+      identity.setRevocation(await getAuthorityAddress(revocationAuthority));
     }
-    
+
     const utxos = await getSpendableUtxos(systemId, systemId, [changeAaddr]);
     return verusid.createRecoverIdentityTransaction(identity, changeAaddr, tx, blockheight, utxos);
   }
-}
+};
 
 export const pushUpdateIdentityTx = (systemId, txHex, inputs, keys) => {
   const verusid = VrpcProvider.getVerusIdInterface(systemId);
   const signedTx = verusid.signUpdateIdentityTransaction(txHex, inputs, keys);
 
   return sendRawTransaction(systemId, signedTx);
-}
+};

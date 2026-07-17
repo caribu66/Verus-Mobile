@@ -4,7 +4,7 @@ import { View, ScrollView } from 'react-native';
 import { Text, Button } from 'react-native-paper';
 import { useSelector } from 'react-redux';
 import {
-  networks, ECPair, smarttxs, TransactionBuilder, address as baddress,
+  networks, ECPair, smarttxs, TransactionBuilder,
 } from '@bitgo/utxo-lib';
 import { Identity, IdentityScript } from 'verus-typescript-primitives';
 import Styles from '../../../styles';
