@@ -28,6 +28,7 @@ import {
   MARKETPLACE_MAKEOFFER_REQUEST_VDXF_KEY,
   MARKETPLACE_TAKEOFFER_REQUEST_VDXF_KEY,
   MARKETPLACE_CLOSEOFFER_REQUEST_VDXF_KEY,
+  REGISTER_IDENTITY_REQUEST_VDXF_KEY,
 } from 'verus-typescript-primitives';
 import InvoiceInfo from '../InvoiceInfo/InvoiceInfo';
 import { handleVerusPayInvoiceDetailsVDXFObject } from '../../../utils/deeplink/handlers/verusPayInvoiceDetailsHandler';
@@ -53,9 +54,11 @@ import { isDeeplinkHandlerInstalled } from '../../../utils/deeplink/isDeeplinkHa
 import MarketplaceTakeOfferRequestInfo from '../MarketplaceTakeOfferRequestInfo/MarketplaceTakeOfferRequestInfo';
 import MarketplaceMakeOfferRequestInfo from '../MarketplaceMakeOfferRequestInfo/MarketplaceMakeOfferRequestInfo';
 import MarketplaceCloseOfferRequestInfo from '../MarketplaceCloseOfferRequestInfo/MarketplaceCloseOfferRequestInfo';
+import RegisterIdentityRequestInfo from '../RegisterIdentityRequestInfo/RegisterIdentityRequestInfo';
 import { handleMarketplaceTakeOfferRequestDetailsVDXFObject } from '../../../utils/deeplink/handlers/marketplaceTakeOfferRequestDetailsHandler';
 import { handleMarketplaceMakeOfferRequestDetailsVDXFObject } from '../../../utils/deeplink/handlers/marketplaceMakeOfferRequestDetailsHandler';
 import { handleMarketplaceCloseOfferRequestDetailsVDXFObject } from '../../../utils/deeplink/handlers/marketplaceCloseOfferRequestDetailsHandler';
+import { handleRegisterIdentityRequestDetailsVDXFObject } from '../../../utils/deeplink/handlers/registerIdentityRequestDetailsHandler';
 import Colors from '../../../globals/colors';
 import {
   getFriendlyNameMap,
@@ -122,6 +125,7 @@ const GenericRequestHome = props => {
   detailHandlers.set(MARKETPLACE_MAKEOFFER_REQUEST_VDXF_KEY.vdxfid, handleMarketplaceMakeOfferRequestDetailsVDXFObject);
   detailHandlers.set(MARKETPLACE_TAKEOFFER_REQUEST_VDXF_KEY.vdxfid, handleMarketplaceTakeOfferRequestDetailsVDXFObject);
   detailHandlers.set(MARKETPLACE_CLOSEOFFER_REQUEST_VDXF_KEY.vdxfid, handleMarketplaceCloseOfferRequestDetailsVDXFObject);
+  detailHandlers.set(REGISTER_IDENTITY_REQUEST_VDXF_KEY.vdxfid, handleRegisterIdentityRequestDetailsVDXFObject);
   /**
    * Processes a detail in the request at a certain index
    * @param {number} index 
@@ -435,6 +439,18 @@ const GenericRequestHome = props => {
     ),
     [MARKETPLACE_CLOSEOFFER_REQUEST_VDXF_KEY.vdxfid]: () => (
       <MarketplaceCloseOfferRequestInfo
+        {...displayProps}
+        cancel={props.cancel}
+        setLoading={props.setLoading}
+        navigation={props.navigation}
+        next={next}
+        response={response}
+        request={request}
+        detailIndex={detailIndex}
+      />
+    ),
+    [REGISTER_IDENTITY_REQUEST_VDXF_KEY.vdxfid]: () => (
+      <RegisterIdentityRequestInfo
         {...displayProps}
         cancel={props.cancel}
         setLoading={props.setLoading}

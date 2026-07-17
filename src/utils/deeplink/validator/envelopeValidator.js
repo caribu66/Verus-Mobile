@@ -4,7 +4,8 @@ import { AUTHENTICATION_REQUEST_VDXF_KEY, GenericRequest, IDENTITY_UPDATE_REQUES
   MARKETPLACE_MAKEOFFER_REQUEST_VDXF_KEY,
   MARKETPLACE_TAKEOFFER_REQUEST_VDXF_KEY,
   CreateWalletBackupDetailsOrdinalVDXFObject,
-  MARKETPLACE_CLOSEOFFER_REQUEST_VDXF_KEY} from "verus-typescript-primitives"
+  MARKETPLACE_CLOSEOFFER_REQUEST_VDXF_KEY,
+  REGISTER_IDENTITY_REQUEST_VDXF_KEY} from "verus-typescript-primitives"
 import { getInfo, verifyGenericRequest } from "../../api/channels/vrpc/callCreators"
 import { getIdentity } from "../../api/channels/verusid/callCreators";
 import { validateAuthenticationRequestVDXFObject } from "./authenticationRequestValidator";
@@ -19,6 +20,7 @@ import { validateDataPacketRequestVDXFObject } from "./dataPacketRequestValidato
 import { validateMarketplaceTakeOfferRequestVDXFObject } from "./marketplaceTakeOfferRequestValidator";
 import { validateMarketplaceMakeOfferRequestVDXFObject } from "./marketplaceMakeOfferRequestValidator";
 import { validateMarketplaceCloseOfferRequestVDXFObject } from "./marketplaceCloseOfferRequestValidator";
+import { validateRegisterIdentityRequestVDXFObject } from "./registerIdentityRequestValidator";
 import { CoinDirectory } from "../../CoinData/CoinDirectory";
 import VrpcProvider from '../../vrpc/vrpcInterface';
 import store from "../../../store";
@@ -55,7 +57,8 @@ export const getValidatorForDetail = (detailKey) => {
     [DATA_PACKET_REQUEST_VDXF_KEY.vdxfid]: validateDataPacketRequestVDXFObject,
     [MARKETPLACE_MAKEOFFER_REQUEST_VDXF_KEY.vdxfid]: validateMarketplaceMakeOfferRequestVDXFObject,
     [MARKETPLACE_TAKEOFFER_REQUEST_VDXF_KEY.vdxfid]: validateMarketplaceTakeOfferRequestVDXFObject,
-    [MARKETPLACE_CLOSEOFFER_REQUEST_VDXF_KEY.vdxfid]: validateMarketplaceCloseOfferRequestVDXFObject
+    [MARKETPLACE_CLOSEOFFER_REQUEST_VDXF_KEY.vdxfid]: validateMarketplaceCloseOfferRequestVDXFObject,
+    [REGISTER_IDENTITY_REQUEST_VDXF_KEY.vdxfid]: validateRegisterIdentityRequestVDXFObject
   }
 
   if (Object.keys(detailValidators).includes(detailKey)) {
