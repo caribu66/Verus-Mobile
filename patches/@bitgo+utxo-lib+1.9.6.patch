@@ -3,7 +3,7 @@ diff --git a/node_modules/@bitgo/utxo-lib/src/transaction_builder.js b/node_modu
 +++ b/node_modules/@bitgo/utxo-lib/src/transaction_builder.js
 @@ -860,7 +860,11 @@
      debug('Produced signature (r: %s, s: %s)', signature.r, signature.s)
- 
+
      if (input.signType === scriptTypes.SMART_TRANSACTION) {
 -      input.signatures[i] = new SmartTransactionSignatures(1, 1, [
 +      // The signature digest above is computed with the caller-requested
@@ -17,7 +17,7 @@ diff --git a/node_modules/@bitgo/utxo-lib/src/transaction_builder.js b/node_modu
 @@ -885,6 +889,22 @@
      // any signatures?
      if (input.signatures === undefined) return true
- 
+
 +    if (input.signType === scriptTypes.SMART_TRANSACTION) {
 +      const smartTxSigs = SmartTransactionSignatures.fromChunk(bscript.decompile(input.signatures)[0])
 +
@@ -40,11 +40,11 @@ diff --git a/node_modules/@bitgo/utxo-lib/src/transaction_builder.js b/node_modu
 @@ -900,7 +920,7 @@
    var nInputs = this.tx.ins.length
    var nOutputs = this.tx.outs.length
- 
+
 -  return this.inputs.every(function (input) {
 +  return this.inputs.every(function (input, vin) {
      if (input.signatures === undefined) return true
- 
+
      if (input.signType === scriptTypes.SMART_TRANSACTION) {
 @@ -913,6 +933,14 @@
        ) {
@@ -59,7 +59,7 @@ diff --git a/node_modules/@bitgo/utxo-lib/src/transaction_builder.js b/node_modu
 +      if (smartHashTypeMod === Transaction.SIGHASH_SINGLE) return vin < nOutputs
 +      return false
      }
- 
+
      return input.signatures.every(function (signature) {
 diff --git a/node_modules/@bitgo/utxo-lib/dist/src/transaction_builder.js b/node_modules/@bitgo/utxo-lib/dist/src/transaction_builder.js
 --- a/node_modules/@bitgo/utxo-lib/dist/src/transaction_builder.js
