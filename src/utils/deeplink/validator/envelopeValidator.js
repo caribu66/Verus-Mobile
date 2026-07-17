@@ -1,41 +1,46 @@
-import { AUTHENTICATION_REQUEST_VDXF_KEY, GenericRequest, IDENTITY_UPDATE_REQUEST_VDXF_KEY, PROVISION_IDENTITY_DETAILS_VDXF_KEY, 
-  VERUSPAY_INVOICE_DETAILS_VDXF_KEY, VerusPayInvoiceDetailsOrdinalVDXFObject, APP_ENCRYPTION_REQUEST_VDXF_KEY, CREATE_WALLET_BACKUP_DETAILS_VDXF_KEY,
+import {
+  AUTHENTICATION_REQUEST_VDXF_KEY,
+  IDENTITY_UPDATE_REQUEST_VDXF_KEY,
+  PROVISION_IDENTITY_DETAILS_VDXF_KEY,
+  VERUSPAY_INVOICE_DETAILS_VDXF_KEY,
+  VerusPayInvoiceDetailsOrdinalVDXFObject,
+  APP_ENCRYPTION_REQUEST_VDXF_KEY,
+  CREATE_WALLET_BACKUP_DETAILS_VDXF_KEY,
   MARKETPLACE_MAKEOFFER_REQUEST_VDXF_KEY,
   MARKETPLACE_TAKEOFFER_REQUEST_VDXF_KEY,
   MARKETPLACE_CLOSEOFFER_REQUEST_VDXF_KEY,
-  REGISTER_IDENTITY_REQUEST_VDXF_KEY} from "verus-typescript-primitives"
-import { getInfo, verifyGenericRequest } from "../../api/channels/vrpc/callCreators"
-import { getIdentity } from "../../api/channels/verusid/callCreators";
-import { validateAuthenticationRequestVDXFObject } from "./authenticationRequestValidator";
-import { validateIdentityUpdateRequestVDXFObject } from "./identityUpdateRequestValidator";
-import { validateProvisionIdentityDetailsVDXFObject } from "./provisionIdentityDetailsValidator";
-import { validateVerusPayInvoiceVDXFObject } from "./verusPayInvoiceDetailsValidator";
-import { validateAppEncryptionRequestVDXFObject } from "./appEncryptionRequestValidator";
-import { validateCreateWalletBackupDetailsVDXFObject } from "./createWalletBackupDetailsValidator";
-import { validateMarketplaceTakeOfferRequestVDXFObject } from "./marketplaceTakeOfferRequestValidator";
-import { validateMarketplaceMakeOfferRequestVDXFObject } from "./marketplaceMakeOfferRequestValidator";
-import { validateMarketplaceCloseOfferRequestVDXFObject } from "./marketplaceCloseOfferRequestValidator";
-import { validateRegisterIdentityRequestVDXFObject } from "./registerIdentityRequestValidator";
-import { CoinDirectory } from "../../CoinData/CoinDirectory";
+  REGISTER_IDENTITY_REQUEST_VDXF_KEY,
+} from 'verus-typescript-primitives';
+import { VerusIdInterface } from 'verusid-ts-client';
+import { verifyGenericRequest } from '../../api/channels/vrpc/callCreators';
+import { getIdentity } from '../../api/channels/verusid/callCreators';
+import { validateAuthenticationRequestVDXFObject } from './authenticationRequestValidator';
+import { validateIdentityUpdateRequestVDXFObject } from './identityUpdateRequestValidator';
+import { validateProvisionIdentityDetailsVDXFObject } from './provisionIdentityDetailsValidator';
+import { validateVerusPayInvoiceVDXFObject } from './verusPayInvoiceDetailsValidator';
+import { validateAppEncryptionRequestVDXFObject } from './appEncryptionRequestValidator';
+import { validateCreateWalletBackupDetailsVDXFObject } from './createWalletBackupDetailsValidator';
+import { validateMarketplaceTakeOfferRequestVDXFObject } from './marketplaceTakeOfferRequestValidator';
+import { validateMarketplaceMakeOfferRequestVDXFObject } from './marketplaceMakeOfferRequestValidator';
+import { validateMarketplaceCloseOfferRequestVDXFObject } from './marketplaceCloseOfferRequestValidator';
+import { validateRegisterIdentityRequestVDXFObject } from './registerIdentityRequestValidator';
+import { CoinDirectory } from '../../CoinData/CoinDirectory';
 import VrpcProvider from '../../vrpc/vrpcInterface';
-import store from "../../../store";
-import { coinsList } from "../../CoinData/CoinsList";
-import { VRPC } from "../../constants/intervalConstants";
-import { VerusIdInterface } from "verusid-ts-client";
+import store from '../../../store';
+import { coinsList } from '../../CoinData/CoinsList';
+import { VRPC } from '../../constants/intervalConstants';
 
 /**
  * Checks if a generic envelope has anything in its details that requires
  * a signature. Checks if entire details array contains only signature-optional
  * request types
- * @param {GenericRequest} request 
+ * @param {GenericRequest} request
  */
 export const isRequestRequiredSignature = (request) => {
-  const details = request.details;
+  const { details } = request;
 
-  return !details.every((detail) => {
-    return detail instanceof VerusPayInvoiceDetailsOrdinalVDXFObject 
-  })
-}
+  return !details.every((detail) => detail instanceof VerusPayInvoiceDetailsOrdinalVDXFObject);
+};
 
 export const getValidatorForDetail = (detailKey) => {
   const detailValidators = {
@@ -48,74 +53,69 @@ export const getValidatorForDetail = (detailKey) => {
     [MARKETPLACE_MAKEOFFER_REQUEST_VDXF_KEY.vdxfid]: validateMarketplaceMakeOfferRequestVDXFObject,
     [MARKETPLACE_TAKEOFFER_REQUEST_VDXF_KEY.vdxfid]: validateMarketplaceTakeOfferRequestVDXFObject,
     [MARKETPLACE_CLOSEOFFER_REQUEST_VDXF_KEY.vdxfid]: validateMarketplaceCloseOfferRequestVDXFObject,
-    [REGISTER_IDENTITY_REQUEST_VDXF_KEY.vdxfid]: validateRegisterIdentityRequestVDXFObject
-  }
+    [REGISTER_IDENTITY_REQUEST_VDXF_KEY.vdxfid]: validateRegisterIdentityRequestVDXFObject,
+  };
 
   if (Object.keys(detailValidators).includes(detailKey)) {
     return detailValidators[detailKey];
-  } else {
-    throw new Error("No validator function found for key " + detailKey)
   }
-}
+  throw new Error(`No validator function found for key ${detailKey}`);
+};
 
 /**
- * Validates a generic request and all its details, 
+ * Validates a generic request and all its details,
  * throws on invalid and returns nothing.
  * @param {any} coinObj
- * @param {GenericRequest} request 
+ * @param {GenericRequest} request
  */
 export const validateGenericRequest = async (request) => {
   if (request.isSigned()) {
-    const coinObj = CoinDirectory.getBasicCoinObj(request.signature.systemID.toIAddress())
-    VrpcProvider.initEndpoint(coinObj.system_id, coinObj.vrpc_endpoints[0])
+    const coinObj = CoinDirectory.getBasicCoinObj(request.signature.systemID.toIAddress());
+    VrpcProvider.initEndpoint(coinObj.system_id, coinObj.vrpc_endpoints[0]);
 
     if (!!coinObj.testnet !== request.isTestnet()) {
-      throw new Error(`Cannot validate request made for ${request.isTestnet() ? "testnet" : "mainnet"} on ${coinObj.testnet ? "testnet" : "mainnet"}`)
+      throw new Error(`Cannot validate request made for ${request.isTestnet() ? 'testnet' : 'mainnet'} on ${coinObj.testnet ? 'testnet' : 'mainnet'}`);
     }
 
-    const signedBy = await getIdentity(coinObj.system_id, request.signature.identityID.toIAddress())
-    if (signedBy.error) throw new Error(signedBy.error.message)
+    const signedBy = await getIdentity(coinObj.system_id, request.signature.identityID.toIAddress());
+    if (signedBy.error) throw new Error(signedBy.error.message);
 
     if (!await verifyGenericRequest(coinObj, request, signedBy.result, false)) {
-      throw new Error("Failed to verify request signature")
+      throw new Error('Failed to verify request signature');
     }
 
     if (request.hasAppOrDelegatedID()) {
       if (request.appOrDelegatedID.toAddress() !== request.signature.identityID.toAddress()) {
         const state = store.getState();
-        const activeAccount = state.authentication.activeAccount;
+        const { activeAccount } = state.authentication;
 
         if (activeAccount == null) {
-          throw new Error("Active account required to validate delegated request signer");
+          throw new Error('Active account required to validate delegated request signer');
         }
 
         const vrscSystem = request.isTestnet() ? coinsList.VRSCTEST : coinsList.VRSC;
-        const userVrscAddresses =
-          activeAccount.keys[vrscSystem.id]?.[VRPC]?.addresses || [];
+        const userVrscAddresses = activeAccount.keys[vrscSystem.id]?.[VRPC]?.addresses || [];
 
         const signerIdentity = signedBy.result.identity;
         const signerPrimaryAddresses = signerIdentity.primaryaddresses || [];
         const signerMinSigs = signerIdentity.minimumsignatures;
 
-        const signerMatchesUser =
-          signerMinSigs === 1 &&
-          signerPrimaryAddresses.some((address) => userVrscAddresses.includes(address));
+        const signerMatchesUser = signerMinSigs === 1
+          && signerPrimaryAddresses.some((address) => userVrscAddresses.includes(address));
 
         if (!signerMatchesUser) {
-          throw new Error("Request not signed by appOrDelegatedID or a user-controlled VerusID.");
+          throw new Error('Request not signed by appOrDelegatedID or a user-controlled VerusID.');
         }
       }
     }
   } else if (isRequestRequiredSignature(request) || request.hasAppOrDelegatedID()) {
-    throw new Error("This type of request requires a signature")
-  } else {
-    if (!VerusIdInterface.validateUnsignedGenericRequest(request)) {
-      throw new Error("Failed to verify request")
-    }
+    throw new Error('This type of request requires a signature');
+  } else if (!VerusIdInterface.validateUnsignedGenericRequest(request)) {
+    throw new Error('Failed to verify request');
   }
 
   if (request.hasEncryptResponseToAddress()) {
-    throw new Error("Encrypt response to address not yet supported.")
+    throw new Error('Encrypt response to address not yet supported.');
   }
 
   for (let i = 0; i < request.details.length; i++) {
@@ -123,6 +123,8 @@ export const validateGenericRequest = async (request) => {
     const detailKey = detail.getIAddressKey();
     const validator = getValidatorForDetail(detailKey);
 
+    // Validation is intentionally sequential to preserve detail order.
+    // eslint-disable-next-line no-await-in-loop
     await validator(request, i);
   }
-}
+};

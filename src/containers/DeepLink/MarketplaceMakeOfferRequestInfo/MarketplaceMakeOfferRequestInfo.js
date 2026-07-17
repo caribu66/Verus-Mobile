@@ -149,7 +149,7 @@ const MarketplaceMakeOfferRequestInfo = (props) => {
       // 4. Gather plain funding UTXOs (never spend CC outputs like the identity).
       const { utxos: spendable, hasPendingSpends } = await getSpendablePlainUtxos(endpoint, sellerAddress);
       const funding = spendable.filter((u) => !(u.txid === idTxid && u.outputIndex === idVout));
-      const needed = OFFER_OUTPUT_SATS + OFFER_FEE_SATS * 2 + DUST_THRESHOLD_SATS;
+      const needed = OFFER_OUTPUT_SATS + (OFFER_FEE_SATS * 2) + DUST_THRESHOLD_SATS;
       const picked = [];
       let fundTotal = 0;
       for (let i = 0; i < funding.length; i += 1) {

@@ -1,30 +1,38 @@
-import {all, takeEvery, call, put} from 'redux-saga/effects';
-import {createAlert} from '../actions/actions/alert/dispatchers/alert';
-import {CALLBACK_HOST, SUPPORTED_DLS} from '../utils/constants/constants';
+/* eslint-disable import/no-cycle */
+import {
+  all, takeEvery, call, put,
+} from 'redux-saga/effects';
+import base64url from 'base64url';
+import { Alert, Linking } from 'react-native';
+import { URL } from 'react-native-url-polyfill';
+import { primitives } from 'verusid-ts-client';
+import {
+  DEEPLINK_PROTOCOL_URL_STRING,
+  GENERIC_REQUEST_DEEPLINK_VDXF_KEY,
+  GenericRequest,
+  VALU_MOBILE_GENERIC_REQUEST_HANDLER_ID,
+  VERUS_MOBILE_GENERIC_REQUEST_HANDLER_ID,
+} from 'verus-typescript-primitives';
+import { MAX_DEEPLINK_STRING_LENGTH } from '../utils/constants/deeplink';
 import {
   SET_DEEPLINK_DATA,
   SET_DEEPLINK_URL,
 } from '../utils/constants/storeType';
-import base64url from 'base64url';
-import { Alert, Linking } from 'react-native';
-import { URL } from 'react-native-url-polyfill';
-import { primitives } from 'verusid-ts-client'
-import { MAX_DEEPLINK_STRING_LENGTH } from '../utils/constants/deeplink';
-import { DEEPLINK_PROTOCOL_URL_STRING, GENERIC_REQUEST_DEEPLINK_VDXF_KEY, GenericRequest, VALU_MOBILE_GENERIC_REQUEST_HANDLER_ID, VERUS_MOBILE_GENERIC_REQUEST_HANDLER_ID } from 'verus-typescript-primitives';
+import { CALLBACK_HOST, SUPPORTED_DLS } from '../utils/constants/constants';
+import { createAlert } from '../actions/actions/alert/dispatchers/alert';
 import { isDeeplinkHandlerInstalled } from '../utils/deeplink/isDeeplinkHandlerInstalled';
 import { saveProvisioningDeeplinkRequest } from '../utils/deeplink/provisioningDeeplinkStorage';
-import VrpcProvider from '../utils/vrpc/vrpcInterface';
 
-export default function* deeplinkSaga() {
+export default function * deeplinkSaga() {
   yield all([takeEvery(SET_DEEPLINK_URL, handleDeeplinkUrl)]);
 }
 
-function* handleDeeplinkUrl(action) {
-  const {url: urlstring} = action.payload;
+function * handleDeeplinkUrl(action) {
+  const { url: urlstring } = action.payload;
 
   if (urlstring != null) {
     try {
-      if (urlstring.length >= MAX_DEEPLINK_STRING_LENGTH) throw new Error("Deeplink URL max length exceeded.");
+      if (urlstring.length >= MAX_DEEPLINK_STRING_LENGTH) throw new Error('Deeplink URL max length exceeded.');
       const url = new URL(urlstring);
 
       const isInternalProtocol = url.protocol === `${DEEPLINK_PROTOCOL_URL_STRING}${VERUS_MOBILE_GENERIC_REQUEST_HANDLER_ID}:`;
@@ -36,39 +44,39 @@ function* handleDeeplinkUrl(action) {
         );
 
         if (isInternalProtocol && !otherHandlerInstalled) {
-          throw new Error("Internal deeplinks cannot be used unless multiple deeplink handlers are installed.");
+          throw new Error('Internal deeplinks cannot be used unless multiple deeplink handlers are installed.');
         }
 
         const parseUri = isInternalProtocol
           ? urlstring.replace(
-              `${DEEPLINK_PROTOCOL_URL_STRING}${VERUS_MOBILE_GENERIC_REQUEST_HANDLER_ID}://`,
-              `${DEEPLINK_PROTOCOL_URL_STRING}://`
-            )
+            `${DEEPLINK_PROTOCOL_URL_STRING}${VERUS_MOBILE_GENERIC_REQUEST_HANDLER_ID}://`,
+            `${DEEPLINK_PROTOCOL_URL_STRING}://`,
+          )
           : urlstring;
 
         const req = GenericRequest.fromWalletDeeplinkUri(parseUri);
 
         if (
-          otherHandlerInstalled &&
-          !isInternalProtocol &&
-          req.hasPreferredHandler() &&
-          req.preferredHandler === VALU_MOBILE_GENERIC_REQUEST_HANDLER_ID
+          otherHandlerInstalled
+          && !isInternalProtocol
+          && req.hasPreferredHandler()
+          && req.preferredHandler === VALU_MOBILE_GENERIC_REQUEST_HANDLER_ID
         ) {
-          const shouldRedirect = yield call(() => new Promise(resolve => {
+          const shouldRedirect = yield call(() => new Promise((resolve) => {
             Alert.alert(
               'Open in Valu Mobile?',
               'This request prefers to be handled in the Valu Mobile app. Would you like to open it there instead?',
               [
                 { text: 'No', onPress: () => resolve(false), style: 'cancel' },
                 { text: 'Yes', onPress: () => resolve(true) },
-              ]
+              ],
             );
           }));
 
           if (shouldRedirect) {
             const redirectUrl = urlstring.replace(
               `${DEEPLINK_PROTOCOL_URL_STRING}://`,
-              `${DEEPLINK_PROTOCOL_URL_STRING}${VALU_MOBILE_GENERIC_REQUEST_HANDLER_ID}://`
+              `${DEEPLINK_PROTOCOL_URL_STRING}${VALU_MOBILE_GENERIC_REQUEST_HANDLER_ID}://`,
             );
             yield call([Linking, Linking.openURL], redirectUrl);
             return;
@@ -94,8 +102,8 @@ function* handleDeeplinkUrl(action) {
             data: requestBufferString,
             passthrough: savedProvisioningRequest
               ? {
-                  pendingProvisioningDeeplinkId: savedProvisioningRequest.id,
-                }
+                pendingProvisioningDeeplinkId: savedProvisioningRequest.id,
+              }
               : null,
           },
         });
@@ -131,7 +139,7 @@ function* handleDeeplinkUrl(action) {
             payload: {
               id,
               data: inv.toJson(),
-              uri: urlstring
+              uri: urlstring,
             },
           });
         }
@@ -149,13 +157,13 @@ function* handleDeeplinkUrl(action) {
         // }
       }
     } catch (e) {
-      console.error(e)
-      
+      console.error(e);
+
       createAlert('Error', e.message);
     }
   }
 }
 
-function* handleFinishDeeplink(action) {
+function * handleFinishDeeplink(action) {
   yield put(action);
 }

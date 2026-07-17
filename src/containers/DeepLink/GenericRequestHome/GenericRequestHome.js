@@ -1,22 +1,20 @@
 /*
-  GenericRequestHome 
+  GenericRequestHome
   - Coordinates generic request detail handlers, chooses the matching deeplink
     screen, and forwards completed responses through the request flow.
 */
-import React, {useState, useEffect} from 'react';
-import {Linking, TouchableOpacity, View} from 'react-native';
+/* eslint-disable react/jsx-props-no-spreading, react/no-unused-prop-types */
+import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
+import { Linking, TouchableOpacity, View } from 'react-native';
 import { Portal, Text } from 'react-native-paper';
-import {useSelector} from 'react-redux';
+import { useSelector } from 'react-redux';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Styles from '../../../styles/index';
-import { primitives } from "verusid-ts-client"
-import AnimatedActivityIndicatorBox from '../../../components/AnimatedActivityIndicatorBox';
+import { primitives } from 'verusid-ts-client';
 import {
   AUTHENTICATION_REQUEST_VDXF_KEY,
   APP_ENCRYPTION_REQUEST_VDXF_KEY,
   DEEPLINK_PROTOCOL_URL_STRING,
-  GenericRequest,
-  GenericResponse,
   IDENTITY_UPDATE_REQUEST_VDXF_KEY,
   PROVISION_IDENTITY_DETAILS_VDXF_KEY,
   CREATE_WALLET_BACKUP_DETAILS_VDXF_KEY,
@@ -27,6 +25,8 @@ import {
   MARKETPLACE_CLOSEOFFER_REQUEST_VDXF_KEY,
   REGISTER_IDENTITY_REQUEST_VDXF_KEY,
 } from 'verus-typescript-primitives';
+import Styles from '../../../styles/index';
+import AnimatedActivityIndicatorBox from '../../../components/AnimatedActivityIndicatorBox';
 import InvoiceInfo from '../InvoiceInfo/InvoiceInfo';
 import { handleVerusPayInvoiceDetailsVDXFObject } from '../../../utils/deeplink/handlers/verusPayInvoiceDetailsHandler';
 import { handleAuthenticationRequestDetailsVDXFObject } from '../../../utils/deeplink/handlers/authenticationRequestDetailsHandler';
@@ -50,9 +50,10 @@ import { handleMarketplaceMakeOfferRequestDetailsVDXFObject } from '../../../uti
 import { handleMarketplaceCloseOfferRequestDetailsVDXFObject } from '../../../utils/deeplink/handlers/marketplaceCloseOfferRequestDetailsHandler';
 import { handleRegisterIdentityRequestDetailsVDXFObject } from '../../../utils/deeplink/handlers/registerIdentityRequestDetailsHandler';
 import Colors from '../../../globals/colors';
-const GenericRequestHome = props => {
+
+const GenericRequestHome = (props) => {
   const {
-    deeplinkData
+    deeplinkData,
   } = props;
 
   /**
@@ -69,7 +70,7 @@ const GenericRequestHome = props => {
 
   const [valuInstalled, setValuInstalled] = useState(false);
   const [openInAnotherAppVisible, setOpenInAnotherAppVisible] = useState(false);
-  const passthrough = useSelector(state => state.deeplink.passthrough);
+  const passthrough = useSelector((state) => state.deeplink.passthrough);
 
   /**
    * @type {[number, (number) => {}]}
@@ -96,13 +97,22 @@ const GenericRequestHome = props => {
   detailHandlers.set(PROVISION_IDENTITY_DETAILS_VDXF_KEY.vdxfid, handleProvisionIdentityDetailsVDXFObject);
   detailHandlers.set(APP_ENCRYPTION_REQUEST_VDXF_KEY.vdxfid, handleAppEncryptionRequestVDXFObject);
   detailHandlers.set(CREATE_WALLET_BACKUP_DETAILS_VDXF_KEY.vdxfid, handleCreateWalletBackupDetailsVDXFObject);
-  detailHandlers.set(MARKETPLACE_MAKEOFFER_REQUEST_VDXF_KEY.vdxfid, handleMarketplaceMakeOfferRequestDetailsVDXFObject);
-  detailHandlers.set(MARKETPLACE_TAKEOFFER_REQUEST_VDXF_KEY.vdxfid, handleMarketplaceTakeOfferRequestDetailsVDXFObject);
-  detailHandlers.set(MARKETPLACE_CLOSEOFFER_REQUEST_VDXF_KEY.vdxfid, handleMarketplaceCloseOfferRequestDetailsVDXFObject);
+  detailHandlers.set(
+    MARKETPLACE_MAKEOFFER_REQUEST_VDXF_KEY.vdxfid,
+    handleMarketplaceMakeOfferRequestDetailsVDXFObject,
+  );
+  detailHandlers.set(
+    MARKETPLACE_TAKEOFFER_REQUEST_VDXF_KEY.vdxfid,
+    handleMarketplaceTakeOfferRequestDetailsVDXFObject,
+  );
+  detailHandlers.set(
+    MARKETPLACE_CLOSEOFFER_REQUEST_VDXF_KEY.vdxfid,
+    handleMarketplaceCloseOfferRequestDetailsVDXFObject,
+  );
   detailHandlers.set(REGISTER_IDENTITY_REQUEST_VDXF_KEY.vdxfid, handleRegisterIdentityRequestDetailsVDXFObject);
   /**
    * Processes a detail in the request at a certain index
-   * @param {number} index 
+   * @param {number} index
    */
   const processDetailAtIndex = async (index) => {
     const detail = request.getDetails(index);
@@ -112,8 +122,8 @@ const GenericRequestHome = props => {
 
       if (detailHandlers.has(iaddr)) {
         if (
-          passthrough?.skipWalletBackupRequests &&
-          iaddr === CREATE_WALLET_BACKUP_DETAILS_VDXF_KEY.vdxfid
+          passthrough?.skipWalletBackupRequests
+          && iaddr === CREATE_WALLET_BACKUP_DETAILS_VDXF_KEY.vdxfid
         ) {
           return {
             response,
@@ -122,11 +132,16 @@ const GenericRequestHome = props => {
         }
 
         setDetailIndex(index);
-        return await detailHandlers.get(iaddr)(request, response, index);
+        return detailHandlers.get(iaddr)(request, response, index);
       }
-    } else throw new Error("Unable to find detail at index " + index);
-  }
+      throw new Error(`No handler found for request detail ${iaddr}`);
+    }
+    throw new Error(`Unable to find detail at index ${index}`);
+  };
 
+  // Detail handlers must run in request order because each response builds on
+  // the state produced by the preceding detail.
+  /* eslint-disable no-await-in-loop, no-restricted-syntax, no-plusplus */
   const processNextDetail = async () => {
     const detailsLen = request.details.length;
     const numProcessed = processedDetailIndices.length;
@@ -148,7 +163,7 @@ const GenericRequestHome = props => {
             setProcessedDetailIndices(newIndices);
 
             if (res.displayProps) {
-              setDisplayProps(res.displayProps)
+              setDisplayProps(res.displayProps);
               setDisplayKey(request.getDetails(i).getIAddressKey());
             } else {
               let newDetailsProcessed = detailsProcessed;
@@ -159,46 +174,44 @@ const GenericRequestHome = props => {
                 }
               }
 
-              setDetailsProcessed(newDetailsProcessed)
+              setDetailsProcessed(newDetailsProcessed);
             }
 
             return;
           } catch (e) {
-            createAlert("Error", e.message)
-            props.cancel()
-            console.warn(e)
+            createAlert('Error', e.message);
+            props.cancel();
+            console.warn(e);
           }
         }
       }
     }
-  }
+  };
+  /* eslint-enable no-await-in-loop, no-restricted-syntax, no-plusplus */
 
   /**
    * Function passed to GUI elements that allows them to update handled
    * indices and response when done
-   * @param {GenericResponse} response 
+   * @param {GenericResponse} response
    * @param {Array<number>} handledIndices
    */
-  const next = async (response, handledIndices) => {
-    let newDetailsProcessed = detailsProcessed;
-
-    for (const handledIndex of handledIndices) {
-      if (!processedDetailIndices.includes(handledIndex)) {
-        newDetailsProcessed++;
-      }
-    }
+  const next = async (nextResponse, handledIndices) => {
+    const newlyHandledCount = handledIndices.filter(
+      (handledIndex) => !processedDetailIndices.includes(handledIndex),
+    ).length;
+    const newDetailsProcessed = detailsProcessed + newlyHandledCount;
 
     if (request && newDetailsProcessed < request.details.length) {
       props.navigation.popToTop();
     }
 
-    setResponse(response);
+    setResponse(nextResponse);
     setProcessedDetailIndices([...processedDetailIndices, ...handledIndices]);
     setDetailsProcessed(newDetailsProcessed);
-  }
+  };
 
   useEffect(() => {
-    isDeeplinkHandlerInstalled(VALU_MOBILE_GENERIC_REQUEST_HANDLER_ID).then(installed => {
+    isDeeplinkHandlerInstalled(VALU_MOBILE_GENERIC_REQUEST_HANDLER_ID).then((installed) => {
       setValuInstalled(installed);
     }).catch(() => {});
   }, []);
@@ -228,7 +241,7 @@ const GenericRequestHome = props => {
 
         props.navigation.navigate('GenericRequestComplete', {
           requestBufferString,
-          responseBufferString
+          responseBufferString,
         });
       }
     }
@@ -348,17 +361,18 @@ const GenericRequestHome = props => {
         request={request}
         detailIndex={detailIndex}
       />
-    )
+    ),
   };
 
-  // Keep handler selection and alternate-app routing explicit; integrated by Codex GPT-5 so new VDXF types do not bypass the redesign flow.
+  // Keep handler selection and alternate-app routing explicit so new VDXF
+  // types do not bypass the request flow.
   const openInValu = () => {
     const originalUri = request.toWalletDeeplinkUri();
     const redirectUri = originalUri.replace(
       `${DEEPLINK_PROTOCOL_URL_STRING}://`,
-      `${DEEPLINK_PROTOCOL_URL_STRING}${VALU_MOBILE_GENERIC_REQUEST_HANDLER_ID}://`
+      `${DEEPLINK_PROTOCOL_URL_STRING}${VALU_MOBILE_GENERIC_REQUEST_HANDLER_ID}://`,
     );
-    Linking.openURL(redirectUri).catch(e => createAlert('Error', e.message));
+    Linking.openURL(redirectUri).catch((e) => createAlert('Error', e.message));
   };
 
   return (
@@ -397,6 +411,17 @@ const GenericRequestHome = props => {
       </Portal>
     </View>
   );
+};
+
+GenericRequestHome.propTypes = {
+  cancel: PropTypes.func.isRequired,
+  deeplinkData: PropTypes.string.isRequired,
+  loading: PropTypes.bool.isRequired,
+  navigation: PropTypes.shape({
+    navigate: PropTypes.func.isRequired,
+    popToTop: PropTypes.func.isRequired,
+  }).isRequired,
+  setLoading: PropTypes.func.isRequired,
 };
 
 export default GenericRequestHome;

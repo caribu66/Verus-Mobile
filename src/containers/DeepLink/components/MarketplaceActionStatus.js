@@ -1,4 +1,4 @@
-/* eslint-disable react/prop-types */
+/* eslint-disable no-use-before-define, react/prop-types */
 import React from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { Text, Button } from 'react-native-paper';
