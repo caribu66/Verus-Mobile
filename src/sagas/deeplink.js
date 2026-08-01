@@ -16,16 +16,24 @@ import {
   getPendingDeeplinkPassthrough,
   savePendingDeeplinkRequest,
 } from '../utils/deeplink/pendingDeeplinkStorage';
+import {
+  isHostedWalletScanLink,
+  resolveHostedWalletScanLink,
+} from '../utils/deeplink/resolveHostedWalletScanLink';
 
 export default function* deeplinkSaga() {
   yield all([takeEvery(SET_DEEPLINK_URL, handleDeeplinkUrl)]);
 }
 
 function* handleDeeplinkUrl(action) {
-  const {url: urlstring, passthrough = null} = action.payload;
+  let {url: urlstring, passthrough = null} = action.payload;
 
   if (urlstring != null) {
     try {
+      if (isHostedWalletScanLink(urlstring)) {
+        urlstring = yield call(resolveHostedWalletScanLink, urlstring);
+      }
+
       if (urlstring.length >= MAX_DEEPLINK_STRING_LENGTH) throw new Error("Deeplink URL max length exceeded.");
       const url = new URL(urlstring);
 

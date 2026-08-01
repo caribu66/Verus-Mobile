@@ -47,6 +47,10 @@ import { getCurrency } from '../../utils/api/channels/verusid/callCreators';
 import { CommonActions } from '@react-navigation/routers';
 import { useNavigation } from '@react-navigation/native';
 import { useObjectSelector } from '../../hooks/useObjectSelector';
+import {
+  isHostedWalletScanLink,
+  resolveHostedWalletScanLink,
+} from '../../utils/deeplink/resolveHostedWalletScanLink';
 
 const VerusPay = (props) => {
   const navigation = useNavigation();
@@ -113,11 +117,16 @@ const VerusPay = (props) => {
     });
   }, [activeCoinsForUser, dispatch]);
 
-  const tryProcessDeeplink = (urlstring) => {
+  const tryProcessDeeplink = async (urlstring) => {
+    let resolved = urlstring;
+    if (isHostedWalletScanLink(urlstring)) {
+      resolved = await resolveHostedWalletScanLink(urlstring);
+    }
+
     const genericRequest = (() => {
       try {
         return primitives.GenericRequest.fromWalletDeeplinkUri(
-          urlstring,
+          resolved,
         );
       } catch (e) {
         return null;
@@ -141,7 +150,7 @@ const VerusPay = (props) => {
       return;
     }
 
-    const url = new URL(urlstring);
+    const url = new URL(resolved);
 
     if (url.host !== CALLBACK_HOST)
       throw new Error('Unsupported deeplink host url.');
@@ -162,7 +171,7 @@ const VerusPay = (props) => {
         ),
       );
     } else if (id === primitives.VERUSPAY_INVOICE_VDXF_KEY.vdxfid) {
-      dl = primitives.VerusPayInvoice.fromWalletDeeplinkUri(urlstring);
+      dl = primitives.VerusPayInvoice.fromWalletDeeplinkUri(resolved);
     }
 
     dispatch({
@@ -180,12 +189,12 @@ const VerusPay = (props) => {
     );
   };
 
-  const onSuccess = (codes) => {
+  const onSuccess = async (codes) => {
     try {
       let result = codes[0].value;
 
       try {
-        tryProcessDeeplink(result);
+        await tryProcessDeeplink(result);
         return;
       } catch (dlError) {
         console.log(
