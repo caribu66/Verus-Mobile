@@ -1,5 +1,5 @@
 /* eslint-disable react/prop-types */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, ScrollView } from 'react-native';
 import { Text, Button, Divider } from 'react-native-paper';
 import { useSelector } from 'react-redux';
@@ -22,6 +22,11 @@ import MarketplaceActionStatus, {
   getMarketplaceActionError,
 } from '../components/MarketplaceActionStatus';
 import cardStyles from '../components/marketplaceCardStyles';
+import { postMarketplaceCallback } from '../../../utils/marketplace/postMarketplaceCallback';
+import {
+  ACCEPT_BID_STEPS,
+  confirmMarketplaceAcceptBid,
+} from './confirmMarketplaceAcceptBid';
 
 // On-chain listing publication: the deposit that makes the offer indexable by
 // getoffers (reclaimable by this wallet via closeoffers) and the network fee.
@@ -71,6 +76,7 @@ const MarketplaceTakeOfferRequestInfo = (props) => {
   const [submitting, setSubmitting] = useState(false);
   const [submitStep, setSubmitStep] = useState(0);
   const [submitError, setSubmitError] = useState(null);
+  const broadcastedRef = useRef(null);
 
   const isTestnet = request && request.isTestnet ? request.isTestnet() : true;
   const coinObj = isTestnet ? coinsList.VRSCTEST : coinsList.VRSC;
@@ -78,6 +84,10 @@ const MarketplaceTakeOfferRequestInfo = (props) => {
   const offerParams = takeOfferRequest && takeOfferRequest.containsOfferParams && takeOfferRequest.containsOfferParams()
     ? takeOfferRequest.offerParams
     : null;
+
+  const isAcceptBid = !!(takeOfferRequest
+    && takeOfferRequest.containsBidOfferTxid
+    && takeOfferRequest.containsBidOfferTxid());
 
   const description = takeOfferRequest && takeOfferRequest.containsDesc && takeOfferRequest.containsDesc()
     ? takeOfferRequest.offerDescription
@@ -114,10 +124,42 @@ const MarketplaceTakeOfferRequestInfo = (props) => {
 
   const handleConfirm = useCallback(async () => {
     if (!offerParams) return;
+    if (isAcceptBid) {
+      await confirmMarketplaceAcceptBid({
+        takeOfferRequest,
+        offerParams,
+        coinObj,
+        request,
+        response,
+        detailIndex,
+        identityName,
+        next,
+        broadcastedRef,
+        setSubmitting,
+        setSubmitStep,
+        setSubmitError,
+      });
+      return;
+    }
     setSubmitting(true);
     setSubmitError(null);
-    setSubmitStep(0);
     try {
+      if (broadcastedRef.current) {
+        setSubmitStep(4);
+        const responseURIs = (request && request.responseURIs) || [];
+        if (responseURIs.length === 0) {
+          throw new Error('Request has no response URI to return the signed offer to');
+        }
+        await postMarketplaceCallback(responseURIs[0].getUriString(), broadcastedRef.current);
+        createAlert(
+          'Purchase Complete',
+          `You bought this NFT — the swap settled on-chain.\n\nNFT: ${identityName || offerParams.offeredIdentityId}\nPrice: ${offerParams.forAmountSats.toNumber() / 1e8} ${coinObj.id}`,
+        );
+        next(response, [detailIndex]);
+        return;
+      }
+
+      setSubmitStep(0);
       const endpoint = VrpcProvider.getEndpoint(coinObj.system_id);
 
       // 1. Locate the offered identity's current definition UTXO on-chain.
@@ -238,6 +280,8 @@ const MarketplaceTakeOfferRequestInfo = (props) => {
         throw new Error((sendRes && sendRes.error && sendRes.error.message) || 'Broadcast failed');
       }
       const completedTxid = sendRes.result;
+      const callbackPayload = { completedTxid, completedHex };
+      broadcastedRef.current = callbackPayload;
 
       // 6. Report the settlement to the requester.
       setSubmitStep(4);
@@ -246,16 +290,7 @@ const MarketplaceTakeOfferRequestInfo = (props) => {
         throw new Error('Request has no response URI to return the signed offer to');
       }
       const responseUri = responseURIs[0].getUriString();
-
-      const postRes = await fetch(responseUri, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ completedTxid, completedHex }),
-      }).then((r) => r.json());
-
-      if (postRes && postRes.error) {
-        throw new Error(postRes.error);
-      }
+      await postMarketplaceCallback(responseUri, callbackPayload);
 
       createAlert(
         'Purchase Complete',
@@ -269,15 +304,21 @@ const MarketplaceTakeOfferRequestInfo = (props) => {
       createAlert(actionError.title, actionError.message);
       setSubmitting(false);
     }
-  }, [offerParams, activeCoin, request, response, detailIndex, identityName]);
+  }, [offerParams, isAcceptBid, takeOfferRequest, coinObj, activeCoin, request, response, detailIndex, identityName, next]);
+
+  const statusSteps = isAcceptBid ? ACCEPT_BID_STEPS : TAKE_OFFER_STEPS;
 
   if (submitting) {
     return (
       <ScrollView style={Styles.flexBackground}>
         <MarketplaceActionStatus
-          title="Buying NFT"
-          message="Keep Verus Mobile open while the wallet verifies the listing, signs the purchase, broadcasts the swap, and returns the result."
-          steps={TAKE_OFFER_STEPS}
+          title={isAcceptBid ? 'Accepting Bid' : 'Buying NFT'}
+          message={
+            isAcceptBid
+              ? 'Keep Verus Mobile open while the wallet takes the bid on-chain.'
+              : 'Keep Verus Mobile open while the wallet verifies the listing, signs the purchase, broadcasts the swap, and returns the result.'
+          }
+          steps={statusSteps}
           activeIndex={submitStep}
         />
       </ScrollView>
@@ -290,7 +331,7 @@ const MarketplaceTakeOfferRequestInfo = (props) => {
         <MarketplaceActionStatus
           title={submitError.title}
           message={submitError.message}
-          steps={TAKE_OFFER_STEPS}
+          steps={statusSteps}
           activeIndex={submitStep}
           error
           onRetry={handleConfirm}
@@ -308,14 +349,14 @@ const MarketplaceTakeOfferRequestInfo = (props) => {
     <ScrollView style={Styles.flexBackground}>
       <View style={Styles.headerContainer}>
         <Text style={{ fontSize: 20, color: Colors.quaternaryColor, paddingBottom: 8 }}>
-          Confirm Marketplace Purchase
+          {isAcceptBid ? 'Confirm Accept Bid' : 'Confirm Marketplace Purchase'}
         </Text>
       </View>
       <View style={{ padding: 16 }}>
         <Text style={{ fontSize: 16, marginBottom: 16 }}>
-          You are buying this NFT with an atomic swap. This device verifies the
-          seller signed offer and signs the purchase locally — your key never
-          leaves this device.
+          {isAcceptBid
+            ? 'You are accepting a buyer bid with takeoffer. If this NFT was listed, you should already have closed that listing. This device signs the settlement locally.'
+            : 'You are buying this NFT with an atomic swap. This device verifies the seller signed offer and signs the purchase locally — your key never leaves this device.'}
         </Text>
         {offerParams && (
           <View style={cardStyles.card}>
@@ -340,7 +381,7 @@ const MarketplaceTakeOfferRequestInfo = (props) => {
           Cancel
         </Button>
         <Button mode="contained" color={Colors.primaryColor} onPress={handleConfirm}>
-          Sign &amp; Buy
+          {isAcceptBid ? 'Sign & Accept' : 'Sign & Buy'}
         </Button>
       </View>
     </ScrollView>

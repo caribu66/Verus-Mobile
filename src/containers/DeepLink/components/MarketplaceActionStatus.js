@@ -6,6 +6,20 @@ import Colors from '../../../globals/colors';
 
 const friendlyErrorRules = [
   {
+    test: (message) => (
+      message.includes('not yet visible')
+      || message.includes('tx_propagating')
+      || message.includes('retry the callback')
+      || message.includes('already broadcast')
+      || message.includes('do not rebuild')
+      || message.includes('do not sign again')
+      || message.includes('do not rebuild or re-sign')
+    ),
+    title: 'Marketplace still syncing',
+    message:
+      'Your transaction already left this wallet. The marketplace node has not seen it yet — wait a moment and tap Try Again to report it only. Do not create a second offer.',
+  },
+  {
     test: (message) => message.includes('insufficient') || message.includes('no spendable plain'),
     title: 'More funds needed',
     message:
@@ -24,7 +38,14 @@ const friendlyErrorRules = [
       'The wallet could not return the signed result to the marketplace. Go back to the marketplace and retry from the current listing.',
   },
   {
-    test: (message) => message.includes('broadcast') || message.includes('failed-precheck'),
+    // True broadcast/precheck failures only — not "wait for broadcast and retry"
+    // callback races (those match the syncing rule above).
+    test: (message) => (
+      message.includes('broadcast failed')
+      || message.includes('offer broadcast failed')
+      || message.includes('offer terms broadcast failed')
+      || message.includes('failed-precheck')
+    ),
     title: 'Network rejected the transaction',
     message:
       'The network did not accept this transaction. Let the wallet finish syncing, then retry. If it fails again, recreate the marketplace request.',

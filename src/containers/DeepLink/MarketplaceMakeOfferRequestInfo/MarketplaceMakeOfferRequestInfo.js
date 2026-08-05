@@ -1,5 +1,5 @@
 /* eslint-disable react/prop-types */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, ScrollView } from 'react-native';
 import { Text, Button, Divider } from 'react-native-paper';
 import { useSelector } from 'react-redux';
@@ -26,6 +26,11 @@ import MarketplaceActionStatus, {
   getMarketplaceActionError,
 } from '../components/MarketplaceActionStatus';
 import cardStyles from '../components/marketplaceCardStyles';
+import { postMarketplaceCallback } from '../../../utils/marketplace/postMarketplaceCallback';
+import {
+  MAKE_BID_STEPS,
+  confirmMarketplaceBuyOffer,
+} from './confirmMarketplaceBuyOffer';
 
 const { getFundedTxBuilder } = smarttxs;
 
@@ -67,21 +72,39 @@ const MarketplaceMakeOfferRequestInfo = (props) => {
   const [submitting, setSubmitting] = useState(false);
   const [submitStep, setSubmitStep] = useState(0);
   const [submitError, setSubmitError] = useState(null);
+  // Once broadcast succeeds, retries must only re-POST the callback — never
+  // rebuild/re-sign (that double-spends the listing deposit / NFT UTXO).
+  const broadcastedRef = useRef(null);
 
   const isTestnet = request && request.isTestnet ? request.isTestnet() : true;
   const coinObj = isTestnet ? coinsList.VRSCTEST : coinsList.VRSC;
 
-  const offerParams = makeOfferRequest && makeOfferRequest.containsOfferParams && makeOfferRequest.containsOfferParams()
+  const isBuySide = !!(makeOfferRequest
+    && makeOfferRequest.containsBuyParams
+    && makeOfferRequest.containsBuyParams());
+
+  const offerParams = !isBuySide
+    && makeOfferRequest
+    && makeOfferRequest.containsOfferParams
+    && makeOfferRequest.containsOfferParams()
     ? makeOfferRequest.offerParams
+    : null;
+
+  const buyParams = isBuySide && makeOfferRequest && makeOfferRequest.buyParams
+    ? makeOfferRequest.buyParams
     : null;
 
   const description = makeOfferRequest && makeOfferRequest.containsDesc && makeOfferRequest.containsDesc()
     ? makeOfferRequest.offerDescription
     : null;
 
+  const targetIdentityId = isBuySide
+    ? (buyParams && buyParams.targetIdentityId)
+    : (offerParams && offerParams.offeredIdentityId);
+
   useEffect(() => {
-    if (!offerParams) {
-      createAlert('Error', 'Marketplace makeoffer request is missing offer parameters');
+    if (!targetIdentityId) {
+      createAlert('Error', 'Marketplace makeoffer request is missing parameters');
       cancel();
       return undefined;
     }
@@ -89,14 +112,16 @@ const MarketplaceMakeOfferRequestInfo = (props) => {
     (async () => {
       try {
         const endpoint = VrpcProvider.getEndpoint(coinObj.system_id);
-        const idRes = await endpoint.getIdentity(offerParams.offeredIdentityId);
+        const idRes = await endpoint.getIdentity(targetIdentityId);
         if (!cancelled && idRes && idRes.result) {
           const name = idRes.result.friendlyname || idRes.result.fullyqualifiedname;
           setIdentityName(name);
           const cmm = idRes.result.identity && idRes.result.identity.contentmultimap;
           const preview = parseNftPreview(cmm);
           setAssetPreview(preview);
-          setVerification(verifyNftContentHash(name, preview));
+          if (!isBuySide) {
+            setVerification(verifyNftContentHash(name, preview));
+          }
         }
       } catch (e) {
         console.warn('[MarketplaceMakeOffer] identity name lookup failed:', e && e.message);
@@ -105,12 +130,48 @@ const MarketplaceMakeOfferRequestInfo = (props) => {
     return () => { cancelled = true; };
   }, []);
 
-  const handleConfirm = useCallback(async () => {
+  const reportListingToMarketplace = useCallback(async (payload) => {
+    const responseURIs = (request && request.responseURIs) || [];
+    if (responseURIs.length === 0) {
+      throw new Error('Request has no response URI to return the offer to');
+    }
+    setSubmitStep(4);
+    await postMarketplaceCallback(responseURIs[0].getUriString(), payload);
+  }, [request]);
+
+  const handleConfirmBuy = useCallback(async () => {
+    await confirmMarketplaceBuyOffer({
+      buyParams,
+      coinObj,
+      request,
+      response,
+      detailIndex,
+      identityName,
+      next,
+      broadcastedRef,
+      setSubmitting,
+      setSubmitStep,
+      setSubmitError,
+    });
+  }, [buyParams, coinObj, request, response, detailIndex, identityName, next]);
+
+  const handleConfirmSell = useCallback(async () => {
     if (!offerParams) return;
     setSubmitting(true);
     setSubmitError(null);
-    setSubmitStep(0);
     try {
+      // Money safety: if we already broadcast, only retry the marketplace callback.
+      if (broadcastedRef.current) {
+        await reportListingToMarketplace(broadcastedRef.current);
+        createAlert(
+          'Listing Live',
+          `Your NFT is now offered on-chain.\n\nNFT: ${identityName || offerParams.offeredIdentityId}\nPrice: ${offerParams.forAmountSats.toNumber() / 1e8} ${coinObj.id}`,
+        );
+        next(response, [detailIndex]);
+        return;
+      }
+
+      setSubmitStep(0);
       const endpoint = VrpcProvider.getEndpoint(coinObj.system_id);
       const network = networks.verus;
 
@@ -225,18 +286,18 @@ const MarketplaceMakeOfferRequestInfo = (props) => {
         throw new Error((opretSend && opretSend.error && opretSend.error.message) || 'offer terms broadcast failed');
       }
 
-      // 8. Tell the marketplace the offer is live (it reads native getoffers).
-      setSubmitStep(4);
-      const responseURIs = (request && request.responseURIs) || [];
-      if (responseURIs.length === 0) {
-        throw new Error('Request has no response URI to return the offer to');
-      }
-      const postRes = await fetch(responseURIs[0].getUriString(), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ onchainListingTxid: offerTxid, offerTxid, opretTxid: opretSend.result }),
-      }).then((r) => r.json());
-      if (postRes && postRes.error) throw new Error(postRes.error);
+      const callbackPayload = {
+        onchainListingTxid: offerTxid,
+        offerTxid,
+        opretTxid: opretSend.result,
+        onchainListingHex: offerHex,
+        opretHex,
+      };
+      broadcastedRef.current = callbackPayload;
+
+      // 8. Tell the marketplace the offer is live (include hex so the API can
+      // rebroadcast onto its node and avoid a false "network rejected" race).
+      await reportListingToMarketplace(callbackPayload);
 
       createAlert(
         'Listing Live',
@@ -250,15 +311,22 @@ const MarketplaceMakeOfferRequestInfo = (props) => {
       createAlert(actionError.title, actionError.message);
       setSubmitting(false);
     }
-  }, [offerParams, activeCoin, request, response, detailIndex, identityName]);
+  }, [offerParams, coinObj, request, response, detailIndex, identityName, reportListingToMarketplace, next]);
+
+  const handleConfirm = isBuySide ? handleConfirmBuy : handleConfirmSell;
+  const statusSteps = isBuySide ? MAKE_BID_STEPS : MAKE_OFFER_STEPS;
 
   if (submitting) {
     return (
       <ScrollView style={Styles.flexBackground}>
         <MarketplaceActionStatus
-          title="Listing NFT"
-          message="Keep Verus Mobile open while the wallet publishes your offer on-chain."
-          steps={MAKE_OFFER_STEPS}
+          title={isBuySide ? 'Submitting Bid' : 'Listing NFT'}
+          message={
+            isBuySide
+              ? 'Keep Verus Mobile open while your bid is published on-chain.'
+              : 'Keep Verus Mobile open while the wallet publishes your offer on-chain.'
+          }
+          steps={statusSteps}
           activeIndex={submitStep}
         />
       </ScrollView>
@@ -271,7 +339,7 @@ const MarketplaceMakeOfferRequestInfo = (props) => {
         <MarketplaceActionStatus
           title={submitError.title}
           message={submitError.message}
-          steps={MAKE_OFFER_STEPS}
+          steps={statusSteps}
           activeIndex={submitStep}
           error
           onRetry={handleConfirm}
@@ -281,23 +349,42 @@ const MarketplaceMakeOfferRequestInfo = (props) => {
     );
   }
 
-  const priceDisplay = offerParams
-    ? `${offerParams.forAmountSats.toNumber() / 1e8} ${coinObj.id}`
-    : '';
+  const priceDisplay = isBuySide && buyParams
+    ? `${buyParams.offeredAmountSats.toNumber() / 1e8} ${coinObj.id}`
+    : offerParams
+      ? `${offerParams.forAmountSats.toNumber() / 1e8} ${coinObj.id}`
+      : '';
 
   return (
     <ScrollView style={Styles.flexBackground}>
       <View style={Styles.headerContainer}>
         <Text style={{ fontSize: 20, color: Colors.quaternaryColor, paddingBottom: 8 }}>
-          Confirm Marketplace Listing
+          {isBuySide ? 'Confirm Marketplace Bid' : 'Confirm Marketplace Listing'}
         </Text>
       </View>
       <View style={{ padding: 16 }}>
         <Text style={{ fontSize: 16, marginBottom: 16 }}>
-          You are creating a sell offer for an NFT you own. This device will build
-          and sign the offer locally — your key never leaves this device.
+          {isBuySide
+            ? 'You are offering currency for an NFT listed on the marketplace. This device builds and signs the bid locally — your key never leaves this device.'
+            : 'You are creating a sell offer for an NFT you own. This device will build and sign the offer locally — your key never leaves this device.'}
         </Text>
-        {offerParams && (
+        {isBuySide && buyParams && (
+          <View style={cardStyles.card}>
+            <MarketplaceAssetPreview
+              preview={assetPreview}
+              fallbackName={identityName || buyParams.targetIdentityId}
+            />
+            <Text style={cardStyles.label}>Your bid</Text>
+            <Text style={cardStyles.value}>{priceDisplay}</Text>
+            <Divider style={cardStyles.divider} />
+            <Text style={cardStyles.label}>NFT delivered to</Text>
+            <Text style={cardStyles.valueMono}>
+              {buyParams.acceptDestination.getAddressString()}
+            </Text>
+            {description != null && <Text style={cardStyles.note}>{description}</Text>}
+          </View>
+        )}
+        {!isBuySide && offerParams && (
           <View style={cardStyles.card}>
             <MarketplaceAssetPreview
               preview={assetPreview}
@@ -320,7 +407,7 @@ const MarketplaceMakeOfferRequestInfo = (props) => {
           Cancel
         </Button>
         <Button mode="contained" color={Colors.primaryColor} onPress={handleConfirm}>
-          Sign &amp; List
+          {isBuySide ? 'Sign & Bid' : 'Sign & List'}
         </Button>
       </View>
     </ScrollView>

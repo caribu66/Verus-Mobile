@@ -1,5 +1,5 @@
 /* eslint-disable react/prop-types */
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { View, ScrollView } from 'react-native';
 import { Text, Button } from 'react-native-paper';
 import { useSelector } from 'react-redux';
@@ -22,6 +22,7 @@ import MarketplaceActionStatus, {
   getMarketplaceActionError,
 } from '../components/MarketplaceActionStatus';
 import cardStyles from '../components/marketplaceCardStyles';
+import { postMarketplaceCallback } from '../../../utils/marketplace/postMarketplaceCallback';
 
 const { getFundedTxBuilder } = smarttxs;
 
@@ -50,6 +51,7 @@ const MarketplaceCloseOfferRequestInfo = (props) => {
   const [submitting, setSubmitting] = useState(false);
   const [submitStep, setSubmitStep] = useState(0);
   const [submitError, setSubmitError] = useState(null);
+  const broadcastedRef = useRef(null);
   const [identityName, setIdentityName] = useState(null);
   const [assetPreview, setAssetPreview] = useState(null);
   const [verification, setVerification] = useState(null);
@@ -97,9 +99,21 @@ const MarketplaceCloseOfferRequestInfo = (props) => {
     }
     setSubmitting(true);
     setSubmitError(null);
-    setSubmitStep(0);
     try {
       const { offerTxid } = closeParams;
+      const responseURIs = (request && request.responseURIs) || [];
+      if (responseURIs.length === 0) throw new Error('Request has no response URI to report closeoffer');
+      const responseUri = responseURIs[0].getUriString();
+
+      if (broadcastedRef.current) {
+        setSubmitStep(3);
+        await postMarketplaceCallback(responseUri, broadcastedRef.current);
+        createAlert('Offer Closed', 'Your NFT was returned and the offer removed on-chain.');
+        next(response, [detailIndex]);
+        return;
+      }
+
+      setSubmitStep(0);
       const endpoint = VrpcProvider.getEndpoint(coinObj.system_id);
       const network = networks.verus;
 
@@ -151,17 +165,12 @@ const MarketplaceCloseOfferRequestInfo = (props) => {
         throw new Error((sendRes && sendRes.error && sendRes.error.message) || 'Broadcast failed');
       }
       const closeTxid = sendRes.result;
+      const callbackPayload = { offerTxid, closeTxid, closeHex };
+      broadcastedRef.current = callbackPayload;
 
       // 5. Report the close to the marketplace.
       setSubmitStep(3);
-      const responseURIs = (request && request.responseURIs) || [];
-      if (responseURIs.length === 0) throw new Error('Request has no response URI to report closeoffer');
-      const postRes = await fetch(responseURIs[0].getUriString(), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ offerTxid, closeTxid, closeHex }),
-      }).then((r) => r.json());
-      if (postRes && postRes.error) throw new Error(postRes.error);
+      await postMarketplaceCallback(responseUri, callbackPayload);
 
       createAlert('Offer Closed', 'Your NFT was returned and the offer removed on-chain.');
       next(response, [detailIndex]);
@@ -172,7 +181,7 @@ const MarketplaceCloseOfferRequestInfo = (props) => {
       createAlert(actionError.title, actionError.message);
       setSubmitting(false);
     }
-  }, [closeParams, activeCoin, request, response, detailIndex, description]);
+  }, [closeParams, activeCoin, request, response, detailIndex, description, coinObj, next]);
 
   if (submitting) {
     return (

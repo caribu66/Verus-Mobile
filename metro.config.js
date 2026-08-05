@@ -20,6 +20,7 @@ module.exports = (async () => {
       assetExts: assetExts.filter(ext => ext !== 'svg'),
       sourceExts: [...sourceExts, 'svg', 'cjs'],
       extraNodeModules: {
+        'verus-typescript-primitives': require('path').resolve(__dirname, 'node_modules/verus-typescript-primitives'),
         crypto: require.resolve('react-native-crypto'),
         path: require.resolve('path-browserify'),
         stream: require.resolve('stream-browserify'),

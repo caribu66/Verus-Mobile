@@ -21,6 +21,15 @@ export const IDENTITY_OFFER_BASE_KEY = getDataKey(
 export const OFFER_FOR_CURRENCY_BASE_KEY = getDataKey(
   'vrsc::system.exchange.offerforcurrency',
 ).id;
+export const CURRENCY_OFFER_BASE_KEY = getDataKey(
+  'vrsc::system.exchange.currencyoffer',
+).id;
+export const OFFER_FOR_IDENTITY_BASE_KEY = getDataKey(
+  'vrsc::system.exchange.offerforidentity',
+).id;
+
+/** crosschainrpc.h MIN_LISTING_DEPOSIT — dual-index currency bids must lock ≥ 1.0. */
+export const MIN_LISTING_DEPOSIT_SATS = 100000000;
 
 function hash160FromAddressOrBuffer(value) {
   const bytes = Buffer.isBuffer(value) ? Buffer.from(value) : fromBase58Check(value).hash;
@@ -62,23 +71,67 @@ export function buildIdentityOfferOutputScript(identityJson, offeredIdentityIAdd
   return new SmartTransactionScript(master, idScript.paramsOptCC).toBuffer();
 }
 
+/**
+ * Buy-side currency-bid commitment output (daemon makeoffer currency→identity).
+ * Master destinations: offer-for-identity(target) + currency-offer(currency).
+ * Params: EVAL_IDENTITY_COMMITMENT reclaimable by ownerHash (buyer).
+ * Byte-identical to daemon MakeMofNCCScript(CCommitmentHash) + masterKeyDest;
+ * validated against VRSCTEST bid tx 3b64cb66… (2026-08-05).
+ */
+export function buildCurrencyBidCommitmentScript(
+  ownerAddressOrHash,
+  targetIdentityIAddr,
+  offeredCurrencyIAddr,
+) {
+  const forIdentityKey = deriveOfferIndexKey(OFFER_FOR_IDENTITY_BASE_KEY, targetIdentityIAddr);
+  const currencyOfferKey = deriveOfferIndexKey(CURRENCY_OFFER_BASE_KEY, offeredCurrencyIAddr);
+  const ownerHash = hash160FromAddressOrBuffer(ownerAddressOrHash);
+
+  // Keep the proven deposit layout (same as verus-typescript-primitives
+  // buildListingDepositScript) — OptCCParams encoding of EVAL_IDENTITY_COMMITMENT
+  // with a zero CCommitmentHash is brittle across SDK versions.
+  return Buffer.concat([
+    Buffer.from('2f0403000202', 'hex'),
+    Buffer.from([0x14]),
+    forIdentityKey,
+    Buffer.from([0x14]),
+    currencyOfferKey,
+    Buffer.from([0xcc]),
+    Buffer.from('3b0403110101', 'hex'),
+    Buffer.from([0x14]),
+    ownerHash,
+    Buffer.from([0x20]),
+    Buffer.alloc(32),
+    Buffer.from([0x75]),
+  ]);
+}
+
 // Serialized offer object stored in the opret tx's OP_RETURN so `getoffers`
-// reports the price + takeable partial. Structure (reverse-engineered + proven
-// against the daemon): 18-byte header + varint(len) + the signed partial tx
-// (spends the offer output -> pays the seller, SIGHASH_SINGLE|ANYONECANPAY) +
-// 4-byte suffix. The header/suffix are static; every dynamic field lives inside
-// the partial.
+// reports the price + takeable partial. Header is 17 bytes (matches daemon
+// GetOpRetChainOffer envelope); length is Bitcoin compact-size so identity
+// bid partials (>252 bytes) fit.
 const OFFER_OPRET_HEADER = Buffer.from('0500000003000201000000000100000000', 'hex');
 const OFFER_OPRET_SUFFIX = Buffer.from('00000000', 'hex');
 
+function compactSize(n) {
+  if (n < 0xfd) return Buffer.from([n]);
+  if (n <= 0xffff) {
+    const b = Buffer.alloc(3);
+    b[0] = 0xfd;
+    b.writeUInt16LE(n, 1);
+    return b;
+  }
+  const b = Buffer.alloc(5);
+  b[0] = 0xfe;
+  b.writeUInt32LE(n, 1);
+  return b;
+}
+
 export function buildOfferOpret(signedPartialHex) {
   const partial = Buffer.from(signedPartialHex, 'hex');
-  if (partial.length >= 0xfd) {
-    throw new Error(`Offer partial too long (${partial.length}) for single-byte length prefix`);
-  }
   return Buffer.concat([
     OFFER_OPRET_HEADER,
-    Buffer.from([partial.length]),
+    compactSize(partial.length),
     partial,
     OFFER_OPRET_SUFFIX,
   ]);
