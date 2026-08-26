@@ -74,7 +74,23 @@ import {
   DATA_TYPE_STRING,
   DATA_TYPE_DEFINEDKEY,
   IDENTITY_CREDENTIAL,
-  CredentialKey
+  CredentialKey,
+  ASSET_SIGNAL_VDXF_KEY,
+  ASSET_ROOT_VDXF_KEY,
+  ASSET_CONTENT_VDXF_KEY,
+  ASSET_CONTENT_MAIN_VDXF_KEY,
+  ASSET_CONTENT_ALT_VDXF_KEY,
+  ASSET_CONTENT_DELETED_VDXF_KEY,
+  ASSET_LICENSE_VDXF_KEY,
+  ASSET_LICENSE_GRANTORSIG_VDXF_KEY,
+  ASSET_LICENSE_GRANTEESIG_VDXF_KEY,
+  ASSET_LICENSE_NEWCONTENTSIG_VDXF_KEY,
+  ASSET_DEED_VDXF_KEY,
+  ASSET_PROVENANCE_VDXF_KEY,
+  ASSET_DESCRIPTION_VDXF_KEY,
+  ASSET_PRESENTATION_VDXF_KEY,
+  ASSET_TRAITS_VDXF_KEY,
+  ASSET_UPDATESRESTRICTED_VDXF_KEY
 } from 'verus-typescript-primitives';
 
 const vdxfKeyLabelMap = new Map([
@@ -152,7 +168,26 @@ const vdxfKeyLabelMap = new Map([
   [CURRENCY_ADDRESS.vdxfid, { label: "currency address", fqn: CURRENCY_ADDRESS.qualifiedname.name }],
   [DATA_TYPE_DEFINEDKEY.vdxfid, { label: "vdxf key definitions", fqn: DATA_TYPE_DEFINEDKEY.qualifiedname.name }],
   [IDENTITY_CREDENTIAL.vdxfid, { label: "identity credential", fqn: IDENTITY_CREDENTIAL.qualifiedname.name }],
-  [CredentialKey.vdxfid, { label: "credential data", fqn: CredentialKey.qualifiedname.name }]
+  [CredentialKey.vdxfid, { label: "credential data", fqn: CredentialKey.qualifiedname.name }],
+  // Bound Data / Asset convention (vrsc::identity.assets*) — public, unencrypted.
+  // ASSET_SIGNAL_VDXF_KEY is the on-chain discovery marker; the rest describe
+  // the asset's content modules (status, media, license, deed, provenance, etc).
+  [ASSET_SIGNAL_VDXF_KEY.vdxfid, { label: "asset signal", fqn: ASSET_SIGNAL_VDXF_KEY.qualifiedname.name }],
+  [ASSET_ROOT_VDXF_KEY.vdxfid, { label: "asset status", fqn: ASSET_ROOT_VDXF_KEY.qualifiedname.name }],
+  [ASSET_CONTENT_VDXF_KEY.vdxfid, { label: "asset content", fqn: ASSET_CONTENT_VDXF_KEY.qualifiedname.name }],
+  [ASSET_CONTENT_MAIN_VDXF_KEY.vdxfid, { label: "asset main content", fqn: ASSET_CONTENT_MAIN_VDXF_KEY.qualifiedname.name }],
+  [ASSET_CONTENT_ALT_VDXF_KEY.vdxfid, { label: "asset alt content", fqn: ASSET_CONTENT_ALT_VDXF_KEY.qualifiedname.name }],
+  [ASSET_CONTENT_DELETED_VDXF_KEY.vdxfid, { label: "asset content deleted", fqn: ASSET_CONTENT_DELETED_VDXF_KEY.qualifiedname.name }],
+  [ASSET_LICENSE_VDXF_KEY.vdxfid, { label: "asset license", fqn: ASSET_LICENSE_VDXF_KEY.qualifiedname.name }],
+  [ASSET_LICENSE_GRANTORSIG_VDXF_KEY.vdxfid, { label: "asset license grantor signature", fqn: ASSET_LICENSE_GRANTORSIG_VDXF_KEY.qualifiedname.name }],
+  [ASSET_LICENSE_GRANTEESIG_VDXF_KEY.vdxfid, { label: "asset license grantee signature", fqn: ASSET_LICENSE_GRANTEESIG_VDXF_KEY.qualifiedname.name }],
+  [ASSET_LICENSE_NEWCONTENTSIG_VDXF_KEY.vdxfid, { label: "asset license extension signature", fqn: ASSET_LICENSE_NEWCONTENTSIG_VDXF_KEY.qualifiedname.name }],
+  [ASSET_DEED_VDXF_KEY.vdxfid, { label: "asset deed", fqn: ASSET_DEED_VDXF_KEY.qualifiedname.name }],
+  [ASSET_PROVENANCE_VDXF_KEY.vdxfid, { label: "asset provenance", fqn: ASSET_PROVENANCE_VDXF_KEY.qualifiedname.name }],
+  [ASSET_DESCRIPTION_VDXF_KEY.vdxfid, { label: "asset description", fqn: ASSET_DESCRIPTION_VDXF_KEY.qualifiedname.name }],
+  [ASSET_PRESENTATION_VDXF_KEY.vdxfid, { label: "asset presentation", fqn: ASSET_PRESENTATION_VDXF_KEY.qualifiedname.name }],
+  [ASSET_TRAITS_VDXF_KEY.vdxfid, { label: "asset traits", fqn: ASSET_TRAITS_VDXF_KEY.qualifiedname.name }],
+  [ASSET_UPDATESRESTRICTED_VDXF_KEY.vdxfid, { label: "asset updates restricted", fqn: ASSET_UPDATESRESTRICTED_VDXF_KEY.qualifiedname.name }]
 ]);
 
 export function getVDXFKeyLabel(key, nullOnMiss = false) {
