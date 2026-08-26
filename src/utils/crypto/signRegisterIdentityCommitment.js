@@ -13,9 +13,9 @@ const {
   ECPair,
   ECSignature,
 } = require('@bitgo/utxo-lib');
-const bscript = require('@bitgo/utxo-lib/src/script');
-const SmartTransactionSignatures = require('@bitgo/utxo-lib/src/smart_transaction_signatures');
-const SmartTransactionSignature = require('@bitgo/utxo-lib/src/smart_transaction_signature');
+const bscript = require('@bitgo/utxo-lib/dist/src/script');
+const SmartTransactionSignatures = require('@bitgo/utxo-lib/dist/src/smart_transaction_signatures');
+const SmartTransactionSignature = require('@bitgo/utxo-lib/dist/src/smart_transaction_signature');
 
 /**
  * @param {string} returnTxHex
