@@ -173,10 +173,11 @@ android {
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
-            // NOTE: an `applicationIdSuffix ".assetstest"` can be added here to install
-            // this build SIDE-BY-SIDE with an existing com.verusmobile app. Left off so
-            // the build updates the existing debug-signed com.verusmobile in place
-            // (same debug keystore => `adb install -r` preserves wallet data/keys).
+            // Local-only, uncommitted: install side-by-side with the official
+            // com.verusmobile release for phone-e2e testing (2026-09-24) instead of
+            // uninstalling it and losing existing wallet profiles. Revert before any
+            // build meant to update the existing debug-signed com.verusmobile in place.
+            applicationIdSuffix ".e2etest"
             // Never ship either variant of this in a release config.
         }
         release {
